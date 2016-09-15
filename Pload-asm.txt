@@ -1,0 +1,464 @@
+*
+* PLOAD.INSTALL Source Code
+* BY STEVE ELLIS
+* COPYRIGHT (C) 1989
+* MICROSPARC, INC.
+* CONCORD, MA 01742
+*
+* MERLIN 16 ASSEMBLER
+	XC		;turn on 65816 opcodes
+	XC
+	ORG	$4000	;run at $4000
+
+* ProDOS equates
+HIMEM	EQU	$73	;himem pointer
+EXTCMD	EQU	$BE06	;vector to external commands
+ERROUT	EQU	$BE09	;ProDOS error handler
+XTRNADR 	EQU	$BE50	;external command address for BI
+XLEN	EQU	$BE52	;length of command string minus 1
+XCNUM	EQU	$BE53	;BASIC command number (0 if external)
+PBITS	EQU	$BE54	;BI perms to be parsed
+MLI	EQU	$BE70	;MLI interface
+FIFILID 	EQU	$BEBB	;file ID type
+FIAUXID 	EQU	$BEB9	;auxiliary file type
+SREFNUM 	EQU	$BEC7	;GET_FILE_INFO reference number
+MARK	EQU	$BEC8	;in-file position mark
+OSYSBUF 	EQU	$BECE	;buffer for OPEN
+OREFNUM 	EQU	$BED0	;OPEN file reference number
+RWRFNUM 	EQU	$BED6	;READ/WRITE file reference number
+RWDATA	EQU	$BED7	;pointer to data to be used
+RWCOUNT 	EQU	$BED9	;number of bytes to read/write
+RWTRANS 	EQU	$BEDB	;returned N of bytes read
+CREFNUM 	EQU	$BEDE	;CLOSE file reference number
+GETBUFR 	EQU	$BEF5	;ProDOS buffer allocation routine
+BITMAP	EQU	$BF58	;ProDOS system bit map
+IVERSION 	EQU	$BFFD	;BI version number
+COUT	EQU	$FDED	;character out routine
+
+* Storage for program variables
+PTR	EQU	$00
+UPKAR	EQU	$02
+UPKSZ	EQU	$06
+
+* Constants
+BLKSIZE 	EQU	$1000	;size of each data block
+			;BLKSIZE MUST be an even divisor of $8000!
+SOURCE	EQU	$00005000	;source address of data block
+DEST	EQU	$00E12000	;super hi-res page
+
+* General purpose macros
+* Put the 65816 in emulation mode. 8 bit acc and registers
+EMULATE MAC
+	SEC
+	XCE
+	<<<
+* Switch to native mode. 16 bit acc and registers
+NATIVE MAC
+	CLC
+	XCE
+	REP #$30
+	<<<
+* Macro to simulate a branch to subroutine instruction
+BSR	MAC
+	PER	*+5
+	BRL	]1
+	<<<
+* Following are macros to perform MLI calls and
+* file error handling:
+FILERR	MAC
+	BCC 	*+5
+	BRL 	MLIERR
+	<<<
+GET_FILE INFO 	MAC
+	LDA 	#$C4
+	JSR 	MLI
+	FILERR
+	<<<
+OPEN	MAC
+	LDA 	#$C8
+	JSR 	MLI
+	FILERR
+	<<<
+READ	MAC
+	LDA 	#$CA
+	JSR 	MLI
+	FILERR
+	<<<
+SET_MARK 	MAC
+	LDA 	#$CE
+	JSR 	MLI
+	FILERR
+	<<<
+
+	EMULATE
+	LDA	EXTCMD+2	;get page of other commands
+	CMP	#$BE	;there are none
+	BEQ	GETROOM	; so don't bother looking
+	STA	SRCHNG+2	;save the address in zero page
+SEARCH0	LDY	#0	;start at byte 0
+SEARCH	INY		;bump that to byte 1
+	BEQ	ALREADY	; means we have a match
+SRCHNG	LDA	$0000,Y	;get a byte
+	CMP	COMMAND+256,Y 	;compare to our code
+	BEQ	SEARCH	;if equal, look some more
+	INC	SRCHNG+2	;otherwise look at next higher page
+	LDA 	SRCHNG+2
+	CMP	#$9A	;up to start of DOS yet?
+	BCC	SEARCH0	; no, search some more
+	BRA	GETROOM	; yes, skip installed message 
+
+* Print an error message stating that PLOAD has already
+* been installed and return to BASIC.
+ALREADY 	LDY	#0
+:1	LDA	AINSTL,Y	;get a character
+	BEQ	:2	;stop on 0
+	JSR	COUT	;print the char.
+	INY		;finish message
+	BNE	:1	;always
+:2	RTS		;back to BASIC
+
+* Ask ProDOS for room for our command
+GETROOM LDA	HIMEM+1		;get top of free memory
+	CLC
+	ADC	#4	; add to that the ProDOS general buffer
+	STA	OHIMEM	; save the result
+	LDA	#>CMDEND-COMMAND	;get number of pages for our command
+	INC		;add one for total pages needed
+	JSR 	GETBUFR
+	BCC	GOTBUF	;got them
+	JMP	ERROUT	;otherwise exit with an error
+
+* Now that we've got the space, we relocate a few
+* addresses, and move our code up to its new home.
+GOTBUF 	STA 	REL1+2
+	STA 	REL2+2
+* Update the system bitmap
+MRKPAGE 	TAX		;get page number into acc
+	PHA		;save it
+	LSR		;shift it right a few times
+	LSR
+	LSR
+	TAY		; to address byte in bitmap
+	TXA
+	AND	#7	;isolate bit position
+	TAX
+	LDA 	#0
+	SEC		;mark the page with a 1 bit
+:1	ROR
+	DEX
+	BPL	:1
+	ORA	BITMAP,Y	;mask with previous value
+	STA	BITMAP,Y	;and store it
+	PLA		;get page number
+	INC		;bump it
+	CMP	OHIMEM	;done all the pages?
+	BCC	MRKPAGE	; no, finish it up
+
+* Check for BASIC version 1.1
+CATMOD	LDA	IVERSION	;get BI version number
+	CMP	#1	;must be version 1.1 for catalog mods
+	BNE	DCHAIN	;don't change anything
+	LDA	#$C0	;replace IVR and INT file desciptors
+	STA	$B98E	; with PNT and PIC file descriptors
+	INC
+	STA 	$B98D
+	LDA	#"P
+	STA 	$B9AF
+	STA	$B9B2
+	LDA 	#"I
+	STA 	$B9B3
+	LDA 	#"C
+	STA	$B9B4
+	LDA	#"N
+	STA 	$B9B0
+	LDA	#"T
+	STA 	$B9B1
+
+* Daisy-chain our command
+DCHAIN 	NATIVE
+	LDA	EXTCMD+1	;get previous address of ext. commands
+	STA	CMDLINK+4	;and save so we can jump to it
+RELI	LDA	#COMMAND	;put address of our command
+	STA	EXTCMD+1	; into external jump
+	LDA	#CMDEND-COMMAND.$00FF ;last byte of program
+	LDX	#COMMAND	;get source address
+REL2	LDY	#$0000	;and destination address
+	MVN	$00,$00	;and move the program up
+	EMULATE
+	RTS
+OHIMEM	DS	1		;room for old himem value
+	DS	\		;skip to next page
+
+* Scan the input line for our command
+COMMAND 	CLD		;valid command handler identifier
+	PER	PLOAD	;push run-time address of string PLOAD
+	LDY	#0	;scan for command
+	TYX		; on input line
+:1	LDA	$200,X	;get a char
+	INX
+	CMP	#" "	;skip blanks
+	BEQ	:1
+	AND	#$DF	;convert lower case to upper
+	CMP	(01,S),Y	;compare char. to command string
+	BNE 	CMDLINK
+	INY
+	CPY	#5	;got the whole word?
+	BCC	:1	; no, keep looking
+	DEY
+	STY	XLEN	;put the len-1 in BI global page
+	STZ	XCNUM	;command code = 0 means external handler
+	NATIVE
+	PER	DO_CMD	;push address of command handler
+	PLA		;find out what it is
+	STA	XTRNADR	;and let the BI know where it is
+	LDA	#$0401	;require pathname 1, allow slot & drive
+	STA	PBITS	; for BI parser
+	PLA		;pull address of 'PLOAD' off the stack
+	EMULATE
+	CLC		;let BI parse it
+	RTS
+CMDLINK 	PLA		;clean up the stack
+	PLA
+	SEC		;not our command
+	JMP	$0000	; so jump to any other handlers
+
+DO_CMD	NATIVE
+	PER	SAVBUF	;push run-time address of save area
+	LDY 	#6
+:1	LDA	PTR,Y	;get a zero page byte
+	STA	(01,S),Y	;save it
+	DEY
+	DEY
+	BPL	:1	;finish all the 8 bytes
+	PLA
+	LDA 	#SOURCE
+	STA	PTR	;point to source data area
+	STA	RWDATA	;tell MLI where to load data
+	LDA	#DEST
+	STA	UPKAR	;pointer to super hi-res screen
+	LDA	#BLKSIZE
+	STA	RWCOUNT	;read one data block at a time
+	STZ	MARK	;zero file mark (start at byte 0)
+	LDA	#$00E1	;hi word of super hi-res screen location
+	STA 	UPKAR+2
+	LDA	HIMEM	;set HIMEM address
+	STA	OSYSBUF	;as buffer for OPEN
+	EMULATE
+	LDA	#$40	;initialize super hi-res
+	TSB	$C029	;without changing its current status
+	OPEN
+	LDA	OREFNUM	;copy our reference number
+	STA	RWRFNUM	; to read/write,
+	STA	CREFNUM	; close, and
+	STA	SREFNUM	; get_info refnums
+	GET_FILE_INFO
+	LDA	FIFILID	;check file ID type
+	CMP	#$C1	;full 32K image. no need to unpack
+	BEQ 	BIGPIC
+	CMP	#$06	;assume BIN files are 32K images
+	BEQ 	BIGPIC
+	CMP	#$C0	;packed picture image
+	BEQ 	PACPIC
+BADTYPE 	LDA	#$0D	;FILE TYPE MISMATCH
+	BRA	MLIERR	;exit with error back to BASIC
+
+CLOSE	EMULATE
+	LDA	#$CC	;CLOSE the file
+	JSR 	MLI
+	PER 	SAVBUF
+	LDY 	#7
+:1	LDA	(01,S),Y	;restore the ZP we trampled
+	STA 	PTR,Y
+	DEY
+	BPL	:1
+	PLA
+	PLA
+	RTS		;return to BASIC
+
+MLIERR	PHA		;save acc.
+	BSR	CLOSE	;close the file
+	PLA		;get acc.
+	JMP 	ERROUT 	;abort
+
+* Load 32K images
+BIGPIC	EMULATE
+	READ
+	NATIVE
+	PHB		;save data bank
+	LDA	#BLKSIZE-1 	;move one data block
+	LDX	PTR	;from source address
+	LDY	UPKAR	;to super hi-res page
+	MVN 	SOURCE,DEST
+	PLB		;restore data bank
+	LDA	UPKAR	;find location on super hi-res page
+	CLC
+	ADC	#BLKSIZE	;increment screen pointer by size of block
+	STA 	UPKAR
+	CMP	#$A000	;done with the picture (up to $A000)?
+	BNE	BIGPIC	; no, do some more
+	BRA	CLOSE	;close the file and exit
+
+PACPIC	NATIVE
+	LDA	FIAUXID	;get file AUX type
+	BEQ 	TYPE00
+	CMP 	#0001
+	BEQ 	TYPE01
+	CMP 	#0002
+	BEQ 	T02JMP
+	EMULATE
+	BRL	BADTYPE	;not a recognized packed file type
+TO2JMP	BRL	TYPE02	;can't reach it with a normal branch
+
+* Load and unpack aux type $00 files.
+TYPE00	NATIVE
+	LDA	#$7D00	;only interested in data for unpacking
+	STA 	UPKSZ
+	LDA	#$0020	;read the palette
+	STA 	RWCOUNT
+	EMULATE
+	READ
+	LDX 	#0
+	TXA
+SCBLP0	STAL 	$E19D00,X	;zero out the scan line area, since all
+	INX		;Paintworks pictures are 320 mode, palette 0
+	BNE 	SCBLP0
+	LDX 	#$1F
+PALTLP0	LDA	SOURCE,X
+	STAL 	$E19E00,X	;move palette to palette area
+	DES
+	BPL 	PALTLP0
+	NATIVE
+	LDA	#$222	;position past palette in file 
+	STA	MARK
+	LDA	#BLKSIZE
+	STA 	RWCOUNT
+T00LOOP 	EMULATE
+	SET_MARK
+	READ
+	NATIVE
+	BSR 	UNPACK
+	LDA 	UPKAR
+	CMP 	#$9D00
+	BLT 	T00LOOP
+	BRL 	CLOSE
+
+* Load and unpack aux type $01 files.
+TYPE01	NATIVE
+	LDA	#$8000	;SHR pic is $8000 bytes long
+	STA 	UPKSZ	;tell toolbox
+T01LOOP 	EMULATE
+	SET_MARK
+	READ
+	NATIVE
+	BSR 	UNPACK
+	LDA	UPKSZ	;unpacked the entire picture?
+	BNE	TOILOOP	; no. do some more
+	BRL	CLOSE	; else exit through CLOSE
+
+* Load and unpack aux type $02 files.
+TYPE02 	NATIVE
+	LDA	#$7D00	;unpack only screen data (not SCB's, etc.)
+	STA 	UPKSZ
+	EMULATE
+	READ
+	NATIVE
+	LDA	SOURCE+11	;get number of horizontal pixels
+	CMP 	#320
+	BEQ 	PIXOK
+	CMP 	#640
+	BEQ 	PIXOK
+
+* If the picture doesn't have either 320 or 640 pixels, exit
+* to BASIC with a RANGE ERROR.
+	EMULATE
+	LDA 	#2
+	BRL 	MLIERR
+
+* Continue unpacking after determining a standard screen width.
+* First, copy the screen control byte for each scan line.
+PIXOK
+	MX		00
+	LDA	SOURCE+9	;get hi-byte of SCB byte
+	XBA		;move it to high-byte of acc
+	ORA	SOURCE+9	; and get it in low-byte of acc
+	AND	#$F0F0	;only interested in high nibbles
+	LDX 	#0
+SCBLP2	STAL 	$E19D00,X 	;put it in SCB storage area
+	INX
+	INX
+	CPX	#$C8	;only up to $E19DC7
+	BNE 	SCBLP2
+	LDA	#0	;zero out from $E19DC8 -> $E19DFF
+:1	STAL 	$E19D00,X
+	INX
+	INX
+	CPX	#$100	;done the whole page?
+	BNE	:1	; no, finish it up
+
+* Count the number of palettes and move them to where
+* they belong (from $E19E00 up).
+	LDX	SOURCE+13 	;index with number of palettes
+	LDA	#$00	;use acc. to hold address
+PALTLP2 	CLC
+	ADC	#$20	;point to next palette
+	DEX
+	BNE	PALTLP2	;more palettes
+	TAX		;copy address of the end of the palettes
+	PHA		; and save it
+:2	LDA	SOURCE+15.X
+	STAL 	$E19E00,X 	;move the data into palette area
+	DEX
+	DEX
+	BPL	:2	;more palette data
+
+* We have the start of the ScanLineDirectory now. Skip
+* over each entry (4 bytes) to find the beginning of the
+* packed picture data.
+	PLY
+	TYA		;get start addr. of entries in A
+	LDX	SOURCE+15,Y 	;get number of scan lines as index
+PICLP2 	CLC
+	ADC	#4	;skip an entry
+	DEX
+	BNE	PICLP2	;more to do
+	ADC	#17	;adjust pointer to correct address
+	STA	MARK	;load from that point in file
+	LDA 	#BLKSIZE
+	STA 	RWCOUNT
+T02LOOP EMULATE
+	SET_MARK
+	READ
+	NATIVE
+	BSR 	UNPACK
+	LDA 	UPKAR
+	CMP 	#$9D00
+	BLT 	T02LOOP
+	BRL 	CLOSE
+
+* Call the toolbox to unpack the picture.
+UNPACK 	NATIVE
+	LDX	RWTRANS	;number of bytes actually read
+	LDA 	#0
+	PHA		;space for result
+	PHA		;pointer to buffer holding packed data
+	LDY	PTR	;low word of buffer
+	PHY
+	PHX		;number of bytes read
+	PHA		;pointer to pointer to
+	PEA	#UPKAR	; area to unpack into
+	PHA		;pointer to word holding length
+	PEA	#UPKSZ	; of size of area to unpack into
+	LDX	#$2703	;tool number for UnPackBytes
+	JSL	$E10000	;call the toolbox
+	PLA		;get number of bytes unpacked
+	CLC
+	ADC	MARK	;update the file mark by adding the number
+	STA	MARK	; of bytes unpacked to previous mark
+	RTS
+
+PLOAD	ASC 	"PLOAD"
+AINSTL 	HEX 	8D
+	ASC	"PLOAD ALREADY INSTALLED"
+	HEX 	8D8D00
+SAVBUF 	DS	8
+CMDEND 	EQU	*
