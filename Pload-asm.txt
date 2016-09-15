@@ -6,34 +6,34 @@
 * CONCORD, MA 01742
 *
 * MERLIN 16 ASSEMBLER
-	XC		;turn on 65816 opcodes
+	XC			;turn on 65816 opcodes
 	XC
-	ORG	$4000	;run at $4000
+	ORG	$4000		;run at $4000
 
 * ProDOS equates
-HIMEM	EQU	$73	;himem pointer
-EXTCMD	EQU	$BE06	;vector to external commands
-ERROUT	EQU	$BE09	;ProDOS error handler
-XTRNADR 	EQU	$BE50	;external command address for BI
-XLEN	EQU	$BE52	;length of command string minus 1
-XCNUM	EQU	$BE53	;BASIC command number (0 if external)
-PBITS	EQU	$BE54	;BI perms to be parsed
-MLI	EQU	$BE70	;MLI interface
-FIFILID 	EQU	$BEBB	;file ID type
-FIAUXID 	EQU	$BEB9	;auxiliary file type
-SREFNUM 	EQU	$BEC7	;GET_FILE_INFO reference number
-MARK	EQU	$BEC8	;in-file position mark
-OSYSBUF 	EQU	$BECE	;buffer for OPEN
-OREFNUM 	EQU	$BED0	;OPEN file reference number
-RWRFNUM 	EQU	$BED6	;READ/WRITE file reference number
-RWDATA	EQU	$BED7	;pointer to data to be used
-RWCOUNT 	EQU	$BED9	;number of bytes to read/write
-RWTRANS 	EQU	$BEDB	;returned N of bytes read
-CREFNUM 	EQU	$BEDE	;CLOSE file reference number
-GETBUFR 	EQU	$BEF5	;ProDOS buffer allocation routine
-BITMAP	EQU	$BF58	;ProDOS system bit map
-IVERSION 	EQU	$BFFD	;BI version number
-COUT	EQU	$FDED	;character out routine
+HIMEM	EQU	$73		;himem pointer
+EXTCMD	EQU	$BE06		;vector to external commands
+ERROUT	EQU	$BE09		;ProDOS error handler
+XTRNADR	EQU	$BE50		;external command address for BI
+XLEN	EQU	$BE52		;length of command string minus 1
+XCNUM	EQU	$BE53		;BASIC command number (0 if external)
+PBITS	EQU	$BE54		;BI perms to be parsed
+MLI	EQU	$BE70		;MLI interface
+FIFILID EQU	$BEBB		;file ID type
+FIAUXID EQU	$BEB9		;auxiliary file type
+SREFNUM EQU	$BEC7		;GET_FILE_INFO reference number
+MARK	EQU	$BEC8		;in-file position mark
+OSYSBUF	EQU	$BECE		;buffer for OPEN
+OREFNUM	EQU	$BED0		;OPEN file reference number
+RWRFNUM	EQU	$BED6		;READ/WRITE file reference number
+RWDATA	EQU	$BED7		;pointer to data to be used
+RWCOUNT EQU	$BED9		;number of bytes to read/write
+RWTRANS EQU	$BEDB		;returned N of bytes read
+CREFNUM EQU	$BEDE		;CLOSE file reference number
+GETBUFR EQU	$BEF5		;ProDOS buffer allocation routine
+BITMAP	EQU	$BF58		;ProDOS system bit map
+IVERSION	EQU	$BFFD	;BI version number
+COUT	EQU	$FDED		;character out routine
 
 * Storage for program variables
 PTR	EQU	$00
@@ -41,8 +41,8 @@ UPKAR	EQU	$02
 UPKSZ	EQU	$06
 
 * Constants
-BLKSIZE 	EQU	$1000	;size of each data block
-			;BLKSIZE MUST be an even divisor of $8000!
+BLKSIZE	EQU	$1000		;size of each data block
+				;BLKSIZE MUST be an even divisor of $8000!
 SOURCE	EQU	$00005000	;source address of data block
 DEST	EQU	$00E12000	;super hi-res page
 
@@ -56,7 +56,7 @@ EMULATE MAC
 NATIVE MAC
 	CLC
 	XCE
-	REP #$30
+	RE	#$30
 	<<<
 * Macro to simulate a branch to subroutine instruction
 BSR	MAC
@@ -92,30 +92,30 @@ SET_MARK 	MAC
 
 	EMULATE
 	LDA	EXTCMD+2	;get page of other commands
-	CMP	#$BE	;there are none
-	BEQ	GETROOM	; so don't bother looking
+	CMP	#$BE		;there are none
+	BEQ	GETROOM		; so don't bother looking
 	STA	SRCHNG+2	;save the address in zero page
-SEARCH0	LDY	#0	;start at byte 0
-SEARCH	INY		;bump that to byte 1
-	BEQ	ALREADY	; means we have a match
-SRCHNG	LDA	$0000,Y	;get a byte
+SEARCH0	LDY	#0		;start at byte 0
+SEARCH	INY			;bump that to byte 1
+	BEQ	ALREADY		; means we have a match
+SRCHNG	LDA	$0000,Y		;get a byte
 	CMP	COMMAND+256,Y 	;compare to our code
-	BEQ	SEARCH	;if equal, look some more
+	BEQ	SEARCH		;if equal, look some more
 	INC	SRCHNG+2	;otherwise look at next higher page
 	LDA 	SRCHNG+2
-	CMP	#$9A	;up to start of DOS yet?
-	BCC	SEARCH0	; no, search some more
-	BRA	GETROOM	; yes, skip installed message 
+	CMP	#$9A		;up to start of DOS yet?
+	BCC	SEARCH0		; no, search some more
+	BRA	GETROOM		; yes, skip installed message 
 
 * Print an error message stating that PLOAD has already
 * been installed and return to BASIC.
 ALREADY 	LDY	#0
 :1	LDA	AINSTL,Y	;get a character
-	BEQ	:2	;stop on 0
-	JSR	COUT	;print the char.
-	INY		;finish message
-	BNE	:1	;always
-:2	RTS		;back to BASIC
+	BEQ	:2		;stop on 0
+	JSR	COUT		;print the char.
+	INY			;finish message
+	BNE	:1		;always
+:2	RTS			;back to BASIC
 
 * Ask ProDOS for room for our command
 GETROOM LDA	HIMEM+1		;get top of free memory
