@@ -1,0 +1,84 @@
+*
+* SLIDE OBJ Source Code
+* BY STEVE ELLIS
+* COPYRIGHT (C) 1989
+* MICROSPARC, INC
+* CONCORD, MA 01742
+*
+
+		XC			;turn on 65816 opcodes
+		XC
+		OR	$0300
+TOOL		EQU	$00E10000
+
+*
+* Macro to put the 65816 in native mode 16 bit acc 8 regs
+*
+NATIVE		MAC
+		CLC
+		XCE
+		REP	#$30
+		<<<
+*
+* Macro to return to emulation mode
+*
+EMULATE		MAC
+		SEC
+		XCE
+		<<<
+*
+* Start up Quickdraw II. Use $4000-$4300 as the 3 pages
+* of direct space it needs.
+*
+STARTUP		NATIVE
+		PEA	$4000		;change this if $4000-$4300 is needed
+					; for something else
+		PEA	$0000		;master SCB of 0 (320 mode, palette 0)
+		PEA	$0000		;size of largest pixel map, 0 = screen width
+		PEA	$1000		;arbitrary ID number, since we should be
+					; the only application running that requires
+					; an ID
+		LD	#$0204		;QDStartUp
+		JS	TOOL
+		EMULATE
+		RTS
+*
+* Calculate the width of the string ending with 0 that has been
+* put in memory at $2E0.
+*
+CALCWID 	NATIVE
+		PHA			;space for result
+		PEA	$0000
+		PEA	$02E0		;pointer to C string
+		LDX	#$AA04		;CStringWidth
+		JSL	TOOL
+		PLA
+		STA	WIDTH		;put the width where Applesoft can get it
+		EMULATE
+		RTS
+*
+* Position the pen at the bottom of the screen and draw the
+* picture title.
+*
+DRAWSTR		NATIVE
+		PEA		$0000	;horizontal pos., changed by calling program
+		PEA		$00C7	;vertical pos., bottom of screen
+		LDX		#$3A04 	;MoveTo
+		JSL		TOOL
+		PEA		$0000
+		PEA		$02E0	;pointer to C string
+		LDX		#$A604	;DrawCString
+		JSL		TOOL
+		EMULATE
+		RTS
+*
+* Shut down Quickdraw and release the direct page space used
+* Be SURE to CALL this routine if you accidentally press RESET,
+* or the program won't be able to restart Quickdraw correctly.
+* 
+SHUTDOWN	NATIVE
+		LDX		#$0304 	;QDShutDown
+		JSL		TOOL
+		EMULATE
+		RTS
+WIDTH		DS		1	;width of picture title
