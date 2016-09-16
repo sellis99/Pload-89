@@ -1,0 +1,82 @@
+1 •
+2 • SLIDE OBJ Source Code
+3 • BY STEVE ELLIS
+4 • COPYRIGHT (C) 1989
+5 • MICROSPARC. INC
+6 • CONCORD, MA 01742
+7
+8
+9	XC	turn on 65816 opcodes
+10	XC
+11	ORG 50300
+12 TOOL	EQU	$00E10000
+13
+14
+15 • Macro to put the 65816 in native mode 16 bit acc 8 regs
+16 •
+17 NATIVE	MAC
+18	CLC
+19	XCE
+20	REP 8530
+21
+22 •
+23 • Macro to return to emulation mode
+24
+25 EMULATE MAC
+26	SEC
+27	XCE
+28	.c.c<
+29 •
+30 • Start up Quickdraw II	Use 54000-54300 as the 3 pages
+31 • of direct space it needs
+32
+33 STARTUP NATIVE
+34	PEA	54000	.change this if $4000-14300 is needed
+35	for something else
+36	PEA	$0000	:master SCB of 0 (320 mode. palette 0)
+37	PEA	$0000	:size of largest pixel map. 0 = screen width
+38	PEA	$1000	.arbitrary ID number, since we should be
+39	: the only application running that requires
+40	; an ID
+41	LDX g$0204 :00StartUp
+42	JSL TOOL
+43	EMULATE
+14	RTS
+45 •
+36 • Calculate the width of the string ending with 0 that has been
+17 • put in memory at $2E0.
+18
+19 CALCWID NATIVE
+(0	PHA	:space for result
+PEA	$0000
+52	PEA	$02E0	:pointer to C string
+i3	LDX	0SAA04	;CStringWidth
+i4	JSL TOOL
+55	PLA
+i6	STA	WIDTH	;put the width where Applesoft can get it
+(7	EMULATE
+i8	RTS
+i9 •
+50 • Position the pen at the bottom of the screen and draw the
+it • picture title
+i2 •
+i3 DRAWSTR NATIVE
+i4	PEA	$0000	.horizontal pos.. changed by calling program
+i5	PEA	$0007	:vertical pos.. bottom of screen
+i6	LDX g$3A04 .MoveTo
+i7	JSL TOOL
+i8	PEA $0000
+i9	PEA	$02E0	:pointer to C string
+'0	LDX	g$A604	.DrawCString
+'1	JSL	TOOL
+EMULATE 
+RTS
+'4 •
+'5 • Shut down Quickdraw and release the direct page space used
+'6 • Be SURE to CALL this routine if you accidentally press RESET. 7 • or the program won t be able to restart Quickdraw correctly 1 •
+'9 SHUTDOWN NATIVE
+10	LDX 050304 .QDShutDown
+II	JSL TOOL
+12	EMULATE
+13	RTS
+14 WIDTH	DS	1	:width of picture title
