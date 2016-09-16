@@ -310,155 +310,155 @@ PACPIC		NATIVE
 TO2JMP		BRL	TYPE02		;can't reach it with a normal branch
 
 * Load and unpack aux type $00 files.
-TYPE00	NATIVE
-	LDA	#$7D00	;only interested in data for unpacking
-	STA 	UPKSZ
-	LDA	#$0020	;read the palette
-	STA 	RWCOUNT
-	EMULATE
-	READ
-	LDX 	#0
-	TXA
-SCBLP0	STAL 	$E19D00,X	;zero out the scan line area, since all
-	INX		;Paintworks pictures are 320 mode, palette 0
-	BNE 	SCBLP0
-	LDX 	#$1F
-PALTLP0	LDA	SOURCE,X
-	STAL 	$E19E00,X	;move palette to palette area
-	DES
-	BPL 	PALTLP0
-	NATIVE
-	LDA	#$222	;position past palette in file 
-	STA	MARK
-	LDA	#BLKSIZE
-	STA 	RWCOUNT
+TYPE00		NATIVE
+		LDA	#$7D00		;only interested in data for unpacking
+		STA 	UPKSZ
+		LDA	#$0020		;read the palette
+		STA 	RWCOUNT
+		EMULATE
+		READ
+		LDX 	#0
+		TXA
+SCBLP0		STAL 	$E19D00,X	;zero out the scan line area, since all
+		INX			;Paintworks pictures are 320 mode, palette 0
+		BNE 	SCBLP0
+		LDX 	#$1F
+PALTLP0		LDA	SOURCE,X
+		STAL 	$E19E00,X	;move palette to palette area
+		DES
+		BPL 	PALTLP0
+		NATIVE
+		LDA	#$222		;position past palette in file 
+		STA	MARK
+		LDA	#BLKSIZE
+		STA 	RWCOUNT
 T00LOOP 	EMULATE
-	SET_MARK
-	READ
-	NATIVE
-	BSR 	UNPACK
-	LDA 	UPKAR
-	CMP 	#$9D00
-	BLT 	T00LOOP
-	BRL 	CLOSE
+		SET_MARK
+		READ
+		NATIVE
+		BSR 	UNPACK
+		LDA 	UPKAR
+		CMP 	#$9D00
+		BLT 	T00LOOP
+		BRL 	CLOSE
 
 * Load and unpack aux type $01 files.
-TYPE01	NATIVE
-	LDA	#$8000	;SHR pic is $8000 bytes long
-	STA 	UPKSZ	;tell toolbox
+TYPE01		NATIVE
+		LDA	#$8000		;SHR pic is $8000 bytes long
+		STA 	UPKSZ		;tell toolbox
 T01LOOP 	EMULATE
-	SET_MARK
-	READ
-	NATIVE
-	BSR 	UNPACK
-	LDA	UPKSZ	;unpacked the entire picture?
-	BNE	TOILOOP	; no. do some more
-	BRL	CLOSE	; else exit through CLOSE
+		SET_MARK
+		READ
+		NATIVE
+		BSR 	UNPACK
+		LDA	UPKSZ		;unpacked the entire picture?
+		BNE	TOILOOP		; no. do some more
+		BRL	CLOSE		; else exit through CLOSE
 
 * Load and unpack aux type $02 files.
-TYPE02 	NATIVE
-	LDA	#$7D00	;unpack only screen data (not SCB's, etc.)
-	STA 	UPKSZ
-	EMULATE
-	READ
-	NATIVE
-	LDA	SOURCE+11	;get number of horizontal pixels
-	CMP 	#320
-	BEQ 	PIXOK
-	CMP 	#640
-	BEQ 	PIXOK
+TYPE02 		NATIVE
+		LDA	#$7D00		;unpack only screen data (not SCB's, etc.)
+		STA 	UPKSZ
+		EMULATE
+		READ
+		NATIVE
+		LDA	SOURCE+11	;get number of horizontal pixels
+		CMP 	#320
+		BEQ 	PIXOK
+		CMP 	#640
+		BEQ 	PIXOK
 
 * If the picture doesn't have either 320 or 640 pixels, exit
 * to BASIC with a RANGE ERROR.
-	EMULATE
-	LDA 	#2
-	BRL 	MLIERR
+		EMULATE
+		LDA 	#2
+		BRL 	MLIERR
 
 * Continue unpacking after determining a standard screen width.
 * First, copy the screen control byte for each scan line.
 PIXOK
-	MX		00
-	LDA	SOURCE+9	;get hi-byte of SCB byte
-	XBA		;move it to high-byte of acc
-	ORA	SOURCE+9	; and get it in low-byte of acc
-	AND	#$F0F0	;only interested in high nibbles
-	LDX 	#0
-SCBLP2	STAL 	$E19D00,X 	;put it in SCB storage area
-	INX
-	INX
-	CPX	#$C8	;only up to $E19DC7
-	BNE 	SCBLP2
-	LDA	#0	;zero out from $E19DC8 -> $E19DFF
-:1	STAL 	$E19D00,X
-	INX
-	INX
-	CPX	#$100	;done the whole page?
-	BNE	:1	; no, finish it up
+		MX		00
+		LDA	SOURCE+9	;get hi-byte of SCB byte
+		XBA			;move it to high-byte of acc
+		ORA	SOURCE+9	; and get it in low-byte of acc
+		AND	#$F0F0		;only interested in high nibbles
+		LDX 	#0
+SCBLP2		STAL 	$E19D00,X 	;put it in SCB storage area
+		INX
+		INX
+		CPX	#$C8		;only up to $E19DC7
+		BNE 	SCBLP2
+		LDA	#0		;zero out from $E19DC8 -> $E19DFF
+:1		STAL 	$E19D00,X
+		INX
+		INX
+		CPX	#$100		;done the whole page?
+		BNE	:1		; no, finish it up
 
 * Count the number of palettes and move them to where
 * they belong (from $E19E00 up).
-	LDX	SOURCE+13 	;index with number of palettes
-	LDA	#$00	;use acc. to hold address
+		LDX	SOURCE+13 	;index with number of palettes
+		LDA	#$00		;use acc. to hold address
 PALTLP2 	CLC
-	ADC	#$20	;point to next palette
-	DEX
-	BNE	PALTLP2	;more palettes
-	TAX		;copy address of the end of the palettes
-	PHA		; and save it
-:2	LDA	SOURCE+15.X
-	STAL 	$E19E00,X 	;move the data into palette area
-	DEX
-	DEX
-	BPL	:2	;more palette data
+		ADC	#$20		;point to next palette
+		DEX
+		BNE	PALTLP2		;more palettes
+		TAX			;copy address of the end of the palettes
+		PHA			; and save it
+:2		LDA	SOURCE+15.X
+		STAL 	$E19E00,X 	;move the data into palette area
+		DEX
+		DEX
+		BPL	:2		;more palette data
 
 * We have the start of the ScanLineDirectory now. Skip
 * over each entry (4 bytes) to find the beginning of the
 * packed picture data.
-	PLY
-	TYA		;get start addr. of entries in A
-	LDX	SOURCE+15,Y 	;get number of scan lines as index
-PICLP2 	CLC
-	ADC	#4	;skip an entry
-	DEX
-	BNE	PICLP2	;more to do
-	ADC	#17	;adjust pointer to correct address
-	STA	MARK	;load from that point in file
-	LDA 	#BLKSIZE
-	STA 	RWCOUNT
-T02LOOP EMULATE
-	SET_MARK
-	READ
-	NATIVE
-	BSR 	UNPACK
-	LDA 	UPKAR
-	CMP 	#$9D00
-	BLT 	T02LOOP
-	BRL 	CLOSE
+		PLY
+		TYA			;get start addr. of entries in A
+		LDX	SOURCE+15,Y 	;get number of scan lines as index
+PICLP2 		CLC
+		ADC	#4		;skip an entry
+		DEX
+		BNE	PICLP2		;more to do
+		ADC	#17		;adjust pointer to correct address
+		STA	MARK		;load from that point in file
+		LDA 	#BLKSIZE
+		STA 	RWCOUNT
+T02LOOP 	EMULATE
+		SET_MARK
+		READ
+		NATIVE
+		BSR 	UNPACK
+		LDA 	UPKAR
+		CMP 	#$9D00
+		BLT 	T02LOOP
+		BRL 	CLOSE
 
 * Call the toolbox to unpack the picture.
-UNPACK 	NATIVE
-	LDX	RWTRANS	;number of bytes actually read
-	LDA 	#0
-	PHA		;space for result
-	PHA		;pointer to buffer holding packed data
-	LDY	PTR	;low word of buffer
-	PHY
-	PHX		;number of bytes read
-	PHA		;pointer to pointer to
-	PEA	#UPKAR	; area to unpack into
-	PHA		;pointer to word holding length
-	PEA	#UPKSZ	; of size of area to unpack into
-	LDX	#$2703	;tool number for UnPackBytes
-	JSL	$E10000	;call the toolbox
-	PLA		;get number of bytes unpacked
-	CLC
-	ADC	MARK	;update the file mark by adding the number
-	STA	MARK	; of bytes unpacked to previous mark
-	RTS
+UNPACK 		NATIVE
+		LDX	RWTRANS		;number of bytes actually read
+		LDA 	#0
+		PHA			;space for result
+		PHA			;pointer to buffer holding packed data
+		LDY	PTR		;low word of buffer
+		PHY
+		PHX			;number of bytes read
+		PHA			;pointer to pointer to
+		PEA	#UPKAR		; area to unpack into
+		PHA			;pointer to word holding length
+		PEA	#UPKSZ		; of size of area to unpack into
+		LDX	#$2703		;tool number for UnPackBytes
+		JSL	$E10000		;call the toolbox
+		PLA			;get number of bytes unpacked
+		CLC
+		ADC	MARK		;update the file mark by adding the number
+		STA	MARK		; of bytes unpacked to previous mark
+		RTS
 
-PLOAD	ASC 	"PLOAD"
-AINSTL 	HEX 	8D
-	ASC	"PLOAD ALREADY INSTALLED"
-	HEX 	8D8D00
-SAVBUF 	DS	8
-CMDEND 	EQU	*
+PLOAD		ASC 	"PLOAD"
+AINST	 	HEX 	8D
+		ASC	"PLOAD ALREADY INSTALLED"
+		HEX 	8D8D00
+SAVBUF 		DS	8
+CMDEND 		EQU	*
