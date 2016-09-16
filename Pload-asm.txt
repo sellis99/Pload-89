@@ -6,29 +6,29 @@
 * CONCORD, MA 01742
 *
 * MERLIN 16 ASSEMBLER
-	XC			;turn on 65816 opcodes
-	XC
-	ORG	$4000		;run at $4000
+		XC			;turn on 65816 opcodes
+		XC
+		ORG	$4000		;run at $4000
 
 * ProDOS equates
-HIMEM	EQU	$73		;himem pointer
-EXTCMD	EQU	$BE06		;vector to external commands
-ERROUT	EQU	$BE09		;ProDOS error handler
-XTRNADR	EQU	$BE50		;external command address for BI
-XLEN	EQU	$BE52		;length of command string minus 1
-XCNUM	EQU	$BE53		;BASIC command number (0 if external)
-PBITS	EQU	$BE54		;BI perms to be parsed
-MLI	EQU	$BE70		;MLI interface
-FIFILID EQU	$BEBB		;file ID type
-FIAUXID EQU	$BEB9		;auxiliary file type
-SREFNUM EQU	$BEC7		;GET_FILE_INFO reference number
-MARK	EQU	$BEC8		;in-file position mark
-OSYSBUF	EQU	$BECE		;buffer for OPEN
-OREFNUM	EQU	$BED0		;OPEN file reference number
-RWRFNUM	EQU	$BED6		;READ/WRITE file reference number
-RWDATA	EQU	$BED7		;pointer to data to be used
-RWCOUNT EQU	$BED9		;number of bytes to read/write
-RWTRANS EQU	$BEDB		;returned N of bytes read
+HIMEM		EQU	$73		;himem pointer
+EXTCMD		EQU	$BE06		;vector to external commands
+ERROUT		EQU	$BE09		;ProDOS error handler
+XTRNADR		EQU	$BE50		;external command address for BI
+XLEN		EQU	$BE52		;length of command string minus 1
+XCNUM		EQU	$BE53		;BASIC command number (0 if external)
+PBITS		EQU	$BE54		;BI perms to be parsed
+MLI		EQU	$BE70		;MLI interface
+FIFILID 	EQU	$BEBB		;file ID type
+FIAUXID 	EQU	$BEB9		;auxiliary file type
+SREFNUM 	EQU	$BEC7		;GET_FILE_INFO reference number
+MARK		EQU	$BEC8		;in-file position mark
+OSYSBUF		EQU	$BECE		;buffer for OPEN
+OREFNUM		EQU	$BED0		;OPEN file reference number
+RWRFNUM		EQU	$BED6		;READ/WRITE file reference number
+RWDATA		EQU	$BED7		;pointer to data to be used
+RWCOUNT 	EQU	$BED9		;number of bytes to read/write
+RWTRANS 	EQU	$BEDB		;returned N of bytes read
 CREFNUM EQU	$BEDE		;CLOSE file reference number
 GETBUFR EQU	$BEF5		;ProDOS buffer allocation routine
 BITMAP	EQU	$BF58		;ProDOS system bit map
