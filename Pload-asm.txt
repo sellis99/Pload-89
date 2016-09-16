@@ -109,7 +109,7 @@ SRCHNG	LDA	$0000,Y		;get a byte
 
 * Print an error message stating that PLOAD has already
 * been installed and return to BASIC.
-ALREADY 	LDY	#0
+ALREADY LDY	#0
 :1	LDA	AINSTL,Y	;get a character
 	BEQ	:2		;stop on 0
 	JSR	COUT		;print the char.
@@ -120,13 +120,13 @@ ALREADY 	LDY	#0
 * Ask ProDOS for room for our command
 GETROOM LDA	HIMEM+1		;get top of free memory
 	CLC
-	ADC	#4	; add to that the ProDOS general buffer
-	STA	OHIMEM	; save the result
+	ADC	#4		; add to that the ProDOS general buffer
+	STA	OHIMEM		; save the result
 	LDA	#>CMDEND-COMMAND	;get number of pages for our command
-	INC		;add one for total pages needed
+	INC			;add one for total pages needed
 	JSR 	GETBUFR
-	BCC	GOTBUF	;got them
-	JMP	ERROUT	;otherwise exit with an error
+	BCC	GOTBUF		;got them
+	JMP	ERROUT		;otherwise exit with an error
 
 * Now that we've got the space, we relocate a few
 * addresses, and move our code up to its new home.
@@ -134,32 +134,32 @@ GOTBUF 	STA 	REL1+2
 	STA 	REL2+2
 * Update the system bitmap
 MRKPAGE 	TAX		;get page number into acc
-	PHA		;save it
-	LSR		;shift it right a few times
+	PHA			;save it
+	LSR			;shift it right a few times
 	LSR
 	LSR
-	TAY		; to address byte in bitmap
+	TAY			; to address byte in bitmap
 	TXA
-	AND	#7	;isolate bit position
+	AND	#7		;isolate bit position
 	TAX
 	LDA 	#0
-	SEC		;mark the page with a 1 bit
+	SEC			;mark the page with a 1 bit
 :1	ROR
 	DEX
 	BPL	:1
 	ORA	BITMAP,Y	;mask with previous value
 	STA	BITMAP,Y	;and store it
-	PLA		;get page number
-	INC		;bump it
-	CMP	OHIMEM	;done all the pages?
-	BCC	MRKPAGE	; no, finish it up
+	PLA			;get page number
+	INC			;bump it
+	CMP	OHIMEM		;done all the pages?
+	BCC	MRKPAGE		; no, finish it up
 
 * Check for BASIC version 1.1
 CATMOD	LDA	IVERSION	;get BI version number
-	CMP	#1	;must be version 1.1 for catalog mods
-	BNE	DCHAIN	;don't change anything
-	LDA	#$C0	;replace IVR and INT file desciptors
-	STA	$B98E	; with PNT and PIC file descriptors
+	CMP	#1		;must be version 1.1 for catalog mods
+	BNE	DCHAIN		;don't change anything
+	LDA	#$C0		;replace IVR and INT file desciptors
+	STA	$B98E		; with PNT and PIC file descriptors
 	INC
 	STA 	$B98D
 	LDA	#"P
@@ -182,8 +182,8 @@ RELI	LDA	#COMMAND	;put address of our command
 	STA	EXTCMD+1	; into external jump
 	LDA	#CMDEND-COMMAND.$00FF ;last byte of program
 	LDX	#COMMAND	;get source address
-REL2	LDY	#$0000	;and destination address
-	MVN	$00,$00	;and move the program up
+REL2	LDY	#$0000		;and destination address
+	MVN	$00,$00		;and move the program up
 	EMULATE
 	RTS
 OHIMEM	DS	1		;room for old himem value
@@ -191,79 +191,79 @@ OHIMEM	DS	1		;room for old himem value
 
 * Scan the input line for our command
 COMMAND 	CLD		;valid command handler identifier
-	PER	PLOAD	;push run-time address of string PLOAD
-	LDY	#0	;scan for command
-	TYX		; on input line
-:1	LDA	$200,X	;get a char
+	PER	PLOAD		;push run-time address of string PLOAD
+	LDY	#0		;scan for command
+	TYX			; on input line
+:1	LDA	$200,X		;get a char
 	INX
-	CMP	#" "	;skip blanks
+	CMP	#" "		;skip blanks
 	BEQ	:1
-	AND	#$DF	;convert lower case to upper
+	AND	#$DF		;convert lower case to upper
 	CMP	(01,S),Y	;compare char. to command string
 	BNE 	CMDLINK
 	INY
-	CPY	#5	;got the whole word?
-	BCC	:1	; no, keep looking
+	CPY	#5		;got the whole word?
+	BCC	:1		; no, keep looking
 	DEY
-	STY	XLEN	;put the len-1 in BI global page
-	STZ	XCNUM	;command code = 0 means external handler
+	STY	XLEN		;put the len-1 in BI global page
+	STZ	XCNUM		;command code = 0 means external handler
 	NATIVE
-	PER	DO_CMD	;push address of command handler
-	PLA		;find out what it is
-	STA	XTRNADR	;and let the BI know where it is
-	LDA	#$0401	;require pathname 1, allow slot & drive
-	STA	PBITS	; for BI parser
-	PLA		;pull address of 'PLOAD' off the stack
+	PER	DO_CMD		;push address of command handler
+	PLA			;find out what it is
+	STA	XTRNADR		;and let the BI know where it is
+	LDA	#$0401		;require pathname 1, allow slot & drive
+	STA	PBITS		; for BI parser
+	PLA			;pull address of 'PLOAD' off the stack
 	EMULATE
-	CLC		;let BI parse it
+	CLC			;let BI parse it
 	RTS
 CMDLINK 	PLA		;clean up the stack
 	PLA
-	SEC		;not our command
-	JMP	$0000	; so jump to any other handlers
+	SEC			;not our command
+	JMP	$0000		; so jump to any other handlers
 
 DO_CMD	NATIVE
-	PER	SAVBUF	;push run-time address of save area
+	PER	SAVBUF		;push run-time address of save area
 	LDY 	#6
-:1	LDA	PTR,Y	;get a zero page byte
+:1	LDA	PTR,Y		;get a zero page byte
 	STA	(01,S),Y	;save it
 	DEY
 	DEY
-	BPL	:1	;finish all the 8 bytes
+	BPL	:1		;finish all the 8 bytes
 	PLA
 	LDA 	#SOURCE
-	STA	PTR	;point to source data area
-	STA	RWDATA	;tell MLI where to load data
+	STA	PTR		;point to source data area
+	STA	RWDATA		;tell MLI where to load data
 	LDA	#DEST
-	STA	UPKAR	;pointer to super hi-res screen
+	STA	UPKAR		;pointer to super hi-res screen
 	LDA	#BLKSIZE
-	STA	RWCOUNT	;read one data block at a time
-	STZ	MARK	;zero file mark (start at byte 0)
-	LDA	#$00E1	;hi word of super hi-res screen location
+	STA	RWCOUNT		;read one data block at a time
+	STZ	MARK		;zero file mark (start at byte 0)
+	LDA	#$00E1		;hi word of super hi-res screen location
 	STA 	UPKAR+2
-	LDA	HIMEM	;set HIMEM address
-	STA	OSYSBUF	;as buffer for OPEN
+	LDA	HIMEM		;set HIMEM address
+	STA	OSYSBUF		;as buffer for OPEN
 	EMULATE
-	LDA	#$40	;initialize super hi-res
-	TSB	$C029	;without changing its current status
+	LDA	#$40		;initialize super hi-res
+	TSB	$C029		;without changing its current status
 	OPEN
-	LDA	OREFNUM	;copy our reference number
-	STA	RWRFNUM	; to read/write,
-	STA	CREFNUM	; close, and
-	STA	SREFNUM	; get_info refnums
+	LDA	OREFNUM		;copy our reference number
+	STA	RWRFNUM		; to read/write,
+	STA	CREFNUM		; close, and
+	STA	SREFNUM		; get_info refnums
 	GET_FILE_INFO
-	LDA	FIFILID	;check file ID type
-	CMP	#$C1	;full 32K image. no need to unpack
+	LDA	FIFILID		;check file ID type
+	CMP	#$C1		;full 32K image. no need to unpack
 	BEQ 	BIGPIC
-	CMP	#$06	;assume BIN files are 32K images
+	CMP	#$06		;assume BIN files are 32K images
 	BEQ 	BIGPIC
-	CMP	#$C0	;packed picture image
+	CMP	#$C0		;packed picture image
 	BEQ 	PACPIC
 BADTYPE 	LDA	#$0D	;FILE TYPE MISMATCH
-	BRA	MLIERR	;exit with error back to BASIC
+	BRA	MLIERR		;exit with error back to BASIC
 
 CLOSE	EMULATE
-	LDA	#$CC	;CLOSE the file
+	LDA	#$CC		;CLOSE the file
 	JSR 	MLI
 	PER 	SAVBUF
 	LDY 	#7
@@ -273,12 +273,12 @@ CLOSE	EMULATE
 	BPL	:1
 	PLA
 	PLA
-	RTS		;return to BASIC
+	RTS			;return to BASIC
 
-MLIERR	PHA		;save acc.
-	BSR	CLOSE	;close the file
-	PLA		;get acc.
-	JMP 	ERROUT 	;abort
+MLIERR	PHA			;save acc.
+	BSR	CLOSE		;close the file
+	PLA			;get acc.
+	JMP 	ERROUT 		;abort
 
 * Load 32K images
 BIGPIC	EMULATE
