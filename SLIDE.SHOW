@@ -1,0 +1,61 @@
+10 REM *
+20 REM * SLIDE.SHOW
+30 REM * BY STEVE ELLIS
+40 REM * COPYRIGHT (C) 1989
+50 REM * MICROSPARC, INC.
+60 REM * CONCORD, MA 01742
+70 REM *
+80 D$ = CHR$ (4): DIM F$(45):F = 0:P1$ = " "
+90 ONERR GOTO 600
+100 PRINT D$"-PLOAD.INSTALL"
+110 ONERR GOTO 610
+120 PRINT D$"BLOAD SLIDE.OBJ,A$300"
+130 PRINT D$"PR#3"
+140 ONERR GOTO 390
+150 HOME : PRINT : GOSUB 620: VTAB 1: PRINT : PRINT "Super Hi-Res Slide Show": PRINT "By Steve Ellis": PRINT "Copyright (C) 1989": PRINT "MicroSPARC, Inc.": PRINT : PRINT
+160 PRINT "1) Enter Slot/Drive"
+170 PRINT : PRINT "2) Enter Prefix": PRINT : PRINT "3) Turn picture names off": PRINT : PRINT "4) Turn picture names on": PRINT : PRINT "5) See slide show": PRINT : PRINT "6) Quit": PRINT : PRINT "Your Choice: ";
+180 POKE -16368,0: GET AN$: IF AN$ < "1" OR AN$ > "6" THEN 180
+190 PRINT AN$;:
+200 IF AN$ = "1" THEN GOSUB 510: GOTO 140
+210 IF AN$ < > "2" THEN 270
+220 PP$ = P1$: HOME : INPUT "Enter Prefix: /";P1$: IF P1$ < > "" THEN P1$ = "/" + P1$: IF LEFT$ (P1$,2) = "//" THEN P1$ = RIGHT$ (P1$, LEN (P1$) - 1): GOTO 240
+240 ERR = 0:FL = 1: PRINT D$"prefix ";P1$: PRINT D$"catalog": PRINT : PRINT "Press Return to continue ";: GET AN$: PRINT AN$;:
+250 FL = 0: IF ERR THEN P1$ = PP$
+260 GOTO 150
+270 IF AN$ = "3" THEN F = 1: GOTO 150
+280 IF AN$ = "4" THEN F = 0: GOTO 150
+290 IF AN$ = "6" THEN CALL 852: HOME : VTAB 23: END : REM shut down QuickDraw and end
+300 IF P1$ = "" THEN PRINT D$;"PREFIX": INPUT P1$: GOTO 320
+310 IF RIGHT$ (P1$,1) < > "/" THEN P1$ = P1$ + "/"
+320 X = 1
+330 PRINT D$"OPEN"P1$",TDIR": PRINT D$"READ"P1$
+340 INPUT A$: INPUT A$: INPUT A$
+350 INPUT A$:T$ = MID$ (A$,18,3): IF T$ < > "PIC" AND T$ < > "PNT" AND T$ < > "$C1" AND T$ < > "$C0" THEN 350
+360 FOR Y = 15 TO 2 STEP -1: IF MID$ (A$,Y,1) = " " THEN NEXT
+370 F$(X) = MID$ (A$,2,Y)
+380 X = X + 1:Y = 2: NEXT Y: GOTO 350
+390 PRINT D$"CLOSE": IF FL THEN ERR = 1: VTAB 16: PRINT "Error using prefix ";P1$: PRINT "Press Return to continue ";: POKE -16368,0: GET AN$: VTAB 16: PRINT SPC( 79): PRINT SPC( 79);: GOTO 250
+400 IF X = 1 THEN HOME : PRINT "Disk error or no pictures on that disk...press Return to continue ";: POKE -16368,0: GET AN$: PRINT AN$;: GOTO 140
+410 ONERR GOTO 490
+420 CALL 768: REM Startup Quickdraw
+430 Y = 1
+440 PRINT D$"PLOAD"P1$ + F$(Y)
+450 FOR Z = 1 TO LEN (F$(Y)): POKE 735 + Z,ASC ( MID$ (F$(Y),Z,1)): NEXT : POKE 735 + Z,0: CALL 794: REM poke title into memory and calc. its pixel width
+460 H = (320 - PEEK (866)) / 2: POKE 824,H: REM center the title
+470 IF F = 0 THEN CALL 819: REM draw the title
+480 GET A$: IF ASC (A$) = 27 THEN 500
+490 Y = Y + 1: IF Y < X THEN 440
+500 CALL 852:F = 0: GOTO 140
+510 ONERR GOTO 580
+520 HOME : VTAB 1: PRINT "Slot:";: POKE -16368,0: GET S: IF S < 1 OR S > 7 THEN 520
+530 PRINT S
+540 HTAB 1: VTAB 3: PRINT "Drive:";: POKE -16368,0: GET D: IF D < 1 OR D > 2 THEN 540
+550 PRINT D: PRINT D$;"PREFIX,S";S;",D";D:PRINT D$"catalog": PRINT : PRINT "Press Return to continue ";: GET AN$: PRINT AN$;:
+560 PRINT D$"PREFIX": INPUT P1$
+570 POKE 216,0: HOME : RETURN
+580 CALL -3288: IF PEEK (222) = 16 THEN 570
+590 PRINT : PRINT "Invalid Slot and Drive. Press RETURN to continue.";: POKE -16368,0: GET AN$: GOTO 520
+600 HOME : PRINT "CANNOT FIND PLOAD.INSTALL": END
+610 HOME : PRINT "CANNOT FIND SLIDE.OBJ": END
+620 VTAB 22: HTAB 1: PRINT "While slide show is running, press Return for next picture": PRINT "and Escape for this menu";: RETURN
