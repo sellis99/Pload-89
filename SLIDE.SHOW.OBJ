@@ -8,11 +8,11 @@
 
 		XC			;turn on 65816 opcodes
 		XC
-		OR	$0300
+		ORG	$0300
 TOOL		EQU	$00E10000
 
 *
-* Macro to put the 65816 in native mode 16 bit acc 8 regs
+* Macro to put the 65816 in native mode, 16 bit acc. & regs.
 *
 NATIVE		MAC
 		CLC
@@ -38,8 +38,8 @@ STARTUP		NATIVE
 		PEA	$1000		;arbitrary ID number, since we should be
 					; the only application running that requires
 					; an ID
-		LD	#$0204		;QDStartUp
-		JS	TOOL
+		LDX	#$0204		;QDStartUp
+		JSL	TOOL
 		EMULATE
 		RTS
 *
